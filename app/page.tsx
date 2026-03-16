@@ -1,5 +1,9 @@
+'use client'
+
 import Link from 'next/link'
 import Image from 'next/image'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowRight, Lock, Eye, FileText, CheckCircle2, UserCircle2, MonitorCheck } from 'lucide-react'
@@ -18,6 +22,24 @@ function Confetti() {
 }
 
 export default function Home() {
+  const router = useRouter()
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('user')
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr)
+        if (user.role === 'entry_user') {
+          router.push('/entry-dashboard')
+        } else if (user.role === 'viewer_user') {
+          router.push('/viewer-dashboard')
+        }
+      } catch (e) {
+        console.error('Error parsing stored user:', e)
+      }
+    }
+  }, [router])
+
   return (
     <div className="min-h-screen bg-[#f9f6f0] relative">
 

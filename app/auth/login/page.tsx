@@ -28,14 +28,29 @@ export default function LoginPage() {
   const [isEggBroken, setIsEggBroken] = useState(false)
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 })
 
+  const router = useRouter()
+
   useEffect(() => {
+    // Check if user is already logged in
+    const userStr = localStorage.getItem('user')
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr)
+        if (user.role === 'entry_user') {
+          router.push('/entry-dashboard')
+        } else if (user.role === 'viewer_user') {
+          router.push('/viewer-dashboard')
+        }
+      } catch (e) {
+        console.error('Error parsing stored user:', e)
+      }
+    }
+
     setWindowSize({ width: window.innerWidth, height: window.innerHeight })
     const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight })
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
-  const router = useRouter()
+  }, [router])
 
   const handleTitleClick = () => {
     if (!isEggRevealed && !isEggBroken) {
@@ -91,7 +106,7 @@ export default function LoginPage() {
       } else {
         router.push('/')
       }
-      
+
       toast.success('Login successful!')
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'An error occurred'
