@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { toast } from 'sonner'
 import { X, ArrowUpDown, Trash2, Edit2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -124,9 +125,11 @@ export default function TransactionTable({ transactions, onTransactionDeleted, o
       setSelectedTransaction(updatedTx)
       setEditFormData(null)
       onTransactionUpdated?.()
+      toast.success('Transaction updated successfully!')
     } catch (error) {
       console.error('Error updating transaction:', error)
-      alert(`Error updating transaction: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      const msg = error instanceof Error ? error.message : 'Unknown error'
+      toast.error(`Update failed: ${msg}`)
     }
   }
 
@@ -149,9 +152,11 @@ export default function TransactionTable({ transactions, onTransactionDeleted, o
       setSelectedTransaction(null)
       setIsEditing(false)
       onTransactionDeleted?.()
+      toast.success('Transaction deleted successfully!')
     } catch (error) {
       console.error('Error deleting transaction:', error)
-      alert(`Error deleting transaction: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      const msg = error instanceof Error ? error.message : 'Unknown error'
+      toast.error(`Delete failed: ${msg}`)
     } finally {
       setIsDeleting(false)
     }

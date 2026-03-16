@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -140,8 +141,11 @@ export default function TransactionForm({ userId, onSuccess }: TransactionFormPr
       })
 
       onSuccess?.()
+      toast.success('Transaction created successfully!')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      const msg = err instanceof Error ? err.message : 'An error occurred'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsLoading(false)
     }

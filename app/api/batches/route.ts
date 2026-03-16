@@ -1,12 +1,10 @@
-import { getDb, initDb } from '@/lib/db'
+import { supabase } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 
 // GET all batches for a viewer
 export async function GET(request: NextRequest) {
   try {
-    await initDb()
-    const db = await getDb()
     const viewerId = request.nextUrl.searchParams.get('viewerId')
 
     if (!viewerId) {
@@ -16,14 +14,27 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const batches = await db.all(
-      `SELECT * FROM transaction_batches 
-       WHERE viewerId = ? 
-       ORDER BY createdAt DESC`,
-      [viewerId]
-    )
+    const { data: batches, error } = await supabase
+      .from('transaction_batches')
+      .select('*')
+      .eq('viewer_id', viewerId)
+      .order('created_at', { ascending: false })
 
-    return NextResponse.json(batches)
+    if (error) throw error
+
+    // Map snake_case to camelCase
+    const mappedBatches = batches.map((batch: any) => ({
+      ...batch,
+      viewerId: batch.viewer_id,
+      entryUserId: batch.entry_user_id,
+      batchName: batch.batch_name,
+      transactionCount: batch.transaction_count,
+      totalAmount: batch.total_amount,
+      appliedFilters: batch.applied_filters,
+      createdAt: batch.created_at,
+    }))
+
+    return NextResponse.json(mappedBatches)
   } catch (error) {
     console.error('Error fetching batches:', error)
     return NextResponse.json(
@@ -36,8 +47,6 @@ export async function GET(request: NextRequest) {
 // POST create a new batch
 export async function POST(request: NextRequest) {
   try {
-    await initDb()
-    const db = await getDb()
     const body = await request.json()
 
     const {
@@ -54,63 +63,73 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const batchId = randomUUID()
     const totalAmount = transactions.reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0)
-    const now = new Date().toISOString()
-    const filterStr = JSON.stringify(appliedFilters || {})
-
+    
     // Get the count of batches for this viewer to generate sequential number
-    const batchCount = await db.get(
-      `SELECT COUNT(*) as count FROM transaction_batches WHERE viewerId = ?`,
-      [viewerId]
-    )
-    const sequentialNumber = String(batchCount.count + 1).padStart(2, '0')
+    const { count, error: countError } = await supabase
+      .from('transaction_batches')
+      .select('*', { count: 'exact', head: true })
+      .eq('viewer_id', viewerId)
+
+    if (countError) throw countError
+
+    const sequentialNumber = String((count || 0) + 1).padStart(2, '0')
     const batchName = `Batch ${sequentialNumber}`
 
     // Create batch record
-    await db.run(
-      `INSERT INTO transaction_batches (id, viewerId, entryUserId, batchName, transactionCount, totalAmount, appliedFilters, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        batchId,
-        viewerId,
-        entryUserId,
-        batchName,
-        transactions.length,
-        totalAmount,
-        filterStr,
-        now,
-      ]
-    )
+    const { data: batch, error: batchError } = await supabase
+      .from('transaction_batches')
+      .insert([
+        {
+          viewer_id: viewerId,
+          entry_user_id: entryUserId,
+          batch_name: batchName,
+          transaction_count: transactions.length,
+          total_amount: totalAmount,
+          applied_filters: appliedFilters || {},
+        }
+      ])
+      .select()
+      .single()
+
+    if (batchError) throw batchError
 
     // Create batch transaction records and delete from main transactions table
     for (const tx of transactions) {
-      const txId = randomUUID()
-      await db.run(
-        `INSERT INTO batch_transactions (id, batchId, transactionId, transactionData, createdAt)
-         VALUES (?, ?, ?, ?, ?)`,
-        [
-          txId,
-          batchId,
-          tx.id,
-          JSON.stringify(tx),
-          now,
-        ]
-      )
+      const { error: btError } = await supabase
+        .from('batch_transactions')
+        .insert([
+          {
+            batch_id: batch.id,
+            transaction_id: tx.id,
+            transaction_data: tx,
+          }
+        ])
+
+      if (btError) throw btError
 
       // Delete the transaction from main transactions table
-      await db.run(
-        `DELETE FROM transactions WHERE id = ?`,
-        [tx.id]
-      )
+      const { error: deleteError } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', tx.id)
+
+      if (deleteError) throw deleteError
     }
 
-    const batch = await db.get(
-      'SELECT * FROM transaction_batches WHERE id = ?',
-      [batchId]
-    )
+    // Map back to camelCase
+    const mappedBatch = {
+      ...batch,
+      viewerId: batch.viewer_id,
+      entryUserId: batch.entry_user_id,
+      batchName: batch.batch_name,
+      transactionCount: batch.transaction_count,
+      totalAmount: batch.total_amount,
+      appliedFilters: batch.applied_filters,
+      createdAt: batch.created_at,
+    }
 
-    return NextResponse.json(batch, { status: 201 })
+    return NextResponse.json(mappedBatch, { status: 201 })
   } catch (error) {
     console.error('Error creating batch:', error)
     return NextResponse.json(

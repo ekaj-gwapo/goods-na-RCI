@@ -1,12 +1,9 @@
-import { getDb, initDb } from '@/lib/db'
+import { supabase } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { randomUUID } from 'crypto'
 
 // GET transactions for a user
 export async function GET(request: NextRequest) {
   try {
-    await initDb()
-    const db = await getDb()
     const userId = request.nextUrl.searchParams.get('userId')
 
     if (!userId) {
@@ -16,12 +13,28 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const transactions = await db.all(
-      'SELECT * FROM transactions WHERE userId = ? ORDER BY createdAt DESC',
-      [userId]
-    )
+    const { data: transactions, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
 
-    return NextResponse.json(transactions)
+    if (error) throw error
+
+    // Map snake_case to camelCase for frontend compatibility
+    const mappedTransactions = transactions.map((tx: any) => ({
+      ...tx,
+      userId: tx.user_id,
+      bankName: tx.bank_name,
+      dvNumber: tx.dv_number,
+      checkNumber: tx.check_number,
+      controlNumber: tx.control_number,
+      accountCode: tx.account_code,
+      responsibilityCenter: tx.responsibility_center,
+      createdAt: tx.created_at,
+    }))
+
+    return NextResponse.json(mappedTransactions)
   } catch (error) {
     console.error('Error fetching transactions:', error)
     return NextResponse.json(
@@ -34,8 +47,6 @@ export async function GET(request: NextRequest) {
 // POST new transaction
 export async function POST(request: NextRequest) {
   try {
-    await initDb()
-    const db = await getDb()
     const userId = request.nextUrl.searchParams.get('userId')
 
     if (!userId) {
@@ -46,78 +57,71 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const id = randomUUID()
 
     // Validate required fields
     if (!body.bankName || body.bankName.trim() === '') {
-      return NextResponse.json(
-        { error: 'Bank Name is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Bank Name is required' }, { status: 400 })
     }
     if (!body.payee || body.payee.trim() === '') {
-      return NextResponse.json(
-        { error: 'Payee is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Payee is required' }, { status: 400 })
     }
     if (!body.particulars || body.particulars.trim() === '') {
-      return NextResponse.json(
-        { error: 'Particulars is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Particulars is required' }, { status: 400 })
     }
     if (!body.checkNumber || body.checkNumber.trim() === '') {
-      return NextResponse.json(
-        { error: 'Check Number is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Check Number is required' }, { status: 400 })
     }
     if (!body.amount || isNaN(parseFloat(body.amount))) {
-      return NextResponse.json(
-        { error: 'Amount is required and must be a valid number' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Amount is required and must be a valid number' }, { status: 400 })
     }
     if (!body.date) {
-      return NextResponse.json(
-        { error: 'Date is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Date is required' }, { status: 400 })
     }
     if (!body.accountCode || body.accountCode.trim() === '') {
-      return NextResponse.json(
-        { error: 'Account Code is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Account Code is required' }, { status: 400 })
     }
 
-    await db.run(
-      `INSERT INTO transactions (id, userId, bankName, payee, address, dvNumber, particulars, amount, date, checkNumber, controlNumber, accountCode, debit, credit, remarks, fund, responsibilityCenter)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        userId,
-        body.bankName.trim(),
-        body.payee.trim(),
-        body.address ? body.address.trim() : '',
-        body.dvNumber ? body.dvNumber.trim() : '',
-        body.particulars.trim(),
-        parseFloat(body.amount),
-        body.date,
-        body.checkNumber ? body.checkNumber.trim() : '',
-        body.controlNumber ? body.controlNumber.trim() : '',
-        body.accountCode.trim(),
-        parseFloat(body.debit || 0),
-        parseFloat(body.credit || 0),
-        body.remarks ? body.remarks.trim() : '',
-        body.fund ? body.fund.trim() : 'General Fund',
-        body.responsibilityCenter ? body.responsibilityCenter.trim() : '',
-      ]
-    )
+    const { data: transaction, error } = await supabase
+      .from('transactions')
+      .insert([
+        {
+          user_id: userId,
+          bank_name: body.bankName.trim(),
+          payee: body.payee.trim(),
+          address: body.address ? body.address.trim() : '',
+          dv_number: body.dvNumber ? body.dvNumber.trim() : '',
+          particulars: body.particulars.trim(),
+          amount: parseFloat(body.amount),
+          date: body.date,
+          check_number: body.checkNumber ? body.checkNumber.trim() : '',
+          control_number: body.controlNumber ? body.controlNumber.trim() : '',
+          account_code: body.accountCode.trim(),
+          debit: parseFloat(body.debit || 0),
+          credit: parseFloat(body.credit || 0),
+          remarks: body.remarks ? body.remarks.trim() : '',
+          fund: body.fund ? body.fund.trim() : 'General Fund',
+          responsibility_center: body.responsibilityCenter ? body.responsibilityCenter.trim() : '',
+        }
+      ])
+      .select()
+      .single()
 
-    const transaction = await db.get('SELECT * FROM transactions WHERE id = ?', [id])
-    return NextResponse.json(transaction, { status: 201 })
+    if (error) throw error
+
+    // Map back to camelCase
+    const mappedTx = {
+      ...transaction,
+      userId: transaction.user_id,
+      bankName: transaction.bank_name,
+      dvNumber: transaction.dv_number,
+      checkNumber: transaction.check_number,
+      controlNumber: transaction.control_number,
+      accountCode: transaction.account_code,
+      responsibilityCenter: transaction.responsibility_center,
+      createdAt: transaction.created_at,
+    }
+
+    return NextResponse.json(mappedTx, { status: 201 })
   } catch (error) {
     console.error('Error creating transaction:', error)
     return NextResponse.json(
@@ -130,8 +134,6 @@ export async function POST(request: NextRequest) {
 // PUT update transaction
 export async function PUT(request: NextRequest) {
   try {
-    await initDb()
-    const db = await getDb()
     const id = request.nextUrl.searchParams.get('id')
 
     if (!id) {
@@ -145,72 +147,66 @@ export async function PUT(request: NextRequest) {
 
     // Validate required fields
     if (!body.bankName || body.bankName.trim() === '') {
-      return NextResponse.json(
-        { error: 'Bank Name is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Bank Name is required' }, { status: 400 })
     }
     if (!body.payee || body.payee.trim() === '') {
-      return NextResponse.json(
-        { error: 'Payee is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Payee is required' }, { status: 400 })
     }
     if (!body.particulars || body.particulars.trim() === '') {
-      return NextResponse.json(
-        { error: 'Particulars is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Particulars is required' }, { status: 400 })
     }
     if (!body.checkNumber || body.checkNumber.trim() === '') {
-      return NextResponse.json(
-        { error: 'Check Number is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Check Number is required' }, { status: 400 })
     }
     if (!body.amount || isNaN(parseFloat(body.amount))) {
-      return NextResponse.json(
-        { error: 'Amount is required and must be a valid number' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Amount is required and must be a valid number' }, { status: 400 })
     }
     if (!body.date) {
-      return NextResponse.json(
-        { error: 'Date is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Date is required' }, { status: 400 })
     }
     if (!body.accountCode || body.accountCode.trim() === '') {
-      return NextResponse.json(
-        { error: 'Account Code is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Account Code is required' }, { status: 400 })
     }
 
-    await db.run(
-      `UPDATE transactions SET bankName = ?, payee = ?, address = ?, dvNumber = ?, particulars = ?, amount = ?, date = ?, checkNumber = ?, controlNumber = ?, accountCode = ?, debit = ?, credit = ?, remarks = ?, fund = ?, responsibilityCenter = ? WHERE id = ?`,
-      [
-        body.bankName.trim(),
-        body.payee.trim(),
-        body.address ? body.address.trim() : '',
-        body.dvNumber ? body.dvNumber.trim() : '',
-        body.particulars.trim(),
-        parseFloat(body.amount),
-        body.date,
-        body.checkNumber ? body.checkNumber.trim() : '',
-        body.controlNumber ? body.controlNumber.trim() : '',
-        body.accountCode.trim(),
-        parseFloat(body.debit || 0),
-        parseFloat(body.credit || 0),
-        body.remarks ? body.remarks.trim() : '',
-        body.fund ? body.fund.trim() : 'General Fund',
-        body.responsibilityCenter ? body.responsibilityCenter.trim() : '',
-        id
-      ]
-    )
+    const { data: transaction, error } = await supabase
+      .from('transactions')
+      .update({
+        bank_name: body.bankName.trim(),
+        payee: body.payee.trim(),
+        address: body.address ? body.address.trim() : '',
+        dv_number: body.dvNumber ? body.dvNumber.trim() : '',
+        particulars: body.particulars.trim(),
+        amount: parseFloat(body.amount),
+        date: body.date,
+        check_number: body.checkNumber ? body.checkNumber.trim() : '',
+        control_number: body.controlNumber ? body.controlNumber.trim() : '',
+        account_code: body.accountCode.trim(),
+        debit: parseFloat(body.debit || 0),
+        credit: parseFloat(body.credit || 0),
+        remarks: body.remarks ? body.remarks.trim() : '',
+        fund: body.fund ? body.fund.trim() : 'General Fund',
+        responsibility_center: body.responsibilityCenter ? body.responsibilityCenter.trim() : '',
+      })
+      .eq('id', id)
+      .select()
+      .single()
 
-    const transaction = await db.get('SELECT * FROM transactions WHERE id = ?', [id])
-    return NextResponse.json(transaction)
+    if (error) throw error
+
+    // Map back to camelCase
+    const mappedTx = {
+      ...transaction,
+      userId: transaction.user_id,
+      bankName: transaction.bank_name,
+      dvNumber: transaction.dv_number,
+      checkNumber: transaction.check_number,
+      controlNumber: transaction.control_number,
+      accountCode: transaction.account_code,
+      responsibilityCenter: transaction.responsibility_center,
+      createdAt: transaction.created_at,
+    }
+
+    return NextResponse.json(mappedTx)
   } catch (error) {
     console.error('Error updating transaction:', error)
     return NextResponse.json(
@@ -223,8 +219,6 @@ export async function PUT(request: NextRequest) {
 // DELETE transaction
 export async function DELETE(request: NextRequest) {
   try {
-    await initDb()
-    const db = await getDb()
     const id = request.nextUrl.searchParams.get('id')
 
     if (!id) {
@@ -234,7 +228,13 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    await db.run('DELETE FROM transactions WHERE id = ?', [id])
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting transaction:', error)

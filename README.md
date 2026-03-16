@@ -1,32 +1,51 @@
 # Transaction Management System
 
-A simple two-user transaction management system with data entry and viewing roles using pure SQLite.
+A simple two-user transaction management system with data entry and viewing roles, now powered by **Supabase**.
 
-## Quick Start - 3 Simple Commands!
+## 🚀 Setup Instructions
 
 ### 1. Install Dependencies
 ```bash
 npm install
 ```
 
-### 2. Initialize Database & Seed Demo Users
+### 2. Configure Environment Variables
+Create a `.env` file in the root directory and add your Supabase credentials:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+> [!IMPORTANT]
+> The `SUPABASE_SERVICE_ROLE_KEY` is required for seeding data and bypassing Row-Level Security (RLS) in administrative scripts.
+
+### 3. Database Schema Setup
+1. Go to your [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql).
+2. Copy the content of `scripts/migrate-to-supabase.sql`.
+3. Paste and **Run** it to create the required tables and indexes.
+
+### 4. Verify & Seed Data
+Run these commands to verify your setup and create demo users/transactions:
+
 ```bash
+# Verify connection and tables
+npm run db:verify
+
+# Seed demo users (entry@demo.com, viewer@demo.com)
 npm run db:seed
+
+# Seed dummy transactions
+npm run db:seed-tx
 ```
 
-This will:
-- Create the SQLite database file at `data.db`
-- Create all required tables automatically
-- Insert two demo users with sample transaction data
-
-### 3. Start Development Server
+### 5. Start Development Server
 ```bash
 npm run dev
 ```
-
 Visit `http://localhost:3000` and login!
 
-## Demo Credentials
+## 🔐 Demo Credentials
 
 **Data Entry User:**
 - Email: `entry@demo.com`
@@ -36,53 +55,44 @@ Visit `http://localhost:3000` and login!
 - Email: `viewer@demo.com`
 - Password: `Demo123456!`
 
-## Features
+## ✨ Features
 
-- **Entry User Dashboard** - Input transaction data (bank name, payee, amount, etc.)
-- **Viewer Dashboard** - View assigned transactions with sorting by date, code, amount
-- **Print Reports** - Generate professional transaction reports
-- **Logo Upload** - Add company branding to your system
-- **Role-Based Access** - Secure separation between entry users and viewers
+- **Entry User Dashboard** - Input transaction data with responsive forms.
+- **Viewer Dashboard** - Batch transactions, print reports, and advanced filtering.
+- **Batch Management** - Group transactions into printable batches with undo capability.
+- **Supabase Integration** - Real-time capable, secure PostgreSQL backend.
+- **Role-Based Access** - Secure separation between data entry and oversight.
 
-## Project Structure
+## 📂 Project Structure
 
 ```
 ├── app/
-│   ├── auth/
-│   │   └── login/page.tsx        # Login page
+│   ├── auth/login/page.tsx        # Login interface
 │   ├── api/
-│   │   ├── auth/
-│   │   │   ├── login/route.ts     # Auth endpoint
-│   │   │   └── logout/route.ts    # Logout endpoint
-│   │   ├── transactions/route.ts  # Transaction CRUD
-│   │   └── viewer-assignments/    # Viewer access management
+│   │   ├── auth/                  # Auth endpoints
+│   │   ├── transactions/          # Transaction CRUD
+│   │   ├── batches/               # Batch management
+│   │   └── viewer-assignments/    # Access mapping
 │   ├── entry-dashboard/           # Data entry interface
 │   └── viewer-dashboard/          # Data viewing interface
 ├── lib/
-│   └── db.ts                       # SQLite database utility
+│   └── supabase.ts                # Supabase client configuration
 ├── scripts/
-│   ├── init-db.js                 # Create tables
-│   └── seed.js                     # Seed demo users
-├── data.db                         # SQLite database (auto-created)
-└── .env.local                      # Configuration
+│   ├── migrate-to-supabase.sql    # Database schema
+│   ├── verify-supabase.js         # Setup verification
+│   ├── seed-supabase.js           # Demo user seeding
+│   └── seed-transactions.js       # Dummy data seeding
+└── .env                           # Local configuration (Git ignored)
 ```
 
-## Database
+## 🛠️ Troubleshooting
 
-The SQLite database (`data.db`) is automatically created in your project root on first run. It contains:
-- **users** - Stores login credentials and user roles
-- **transactions** - Stores all transaction data
-- **viewer_access** - Maps which viewers can see which entry users' data
+**"401 Unauthorized" during login?**
+- Ensure `SUPABASE_SERVICE_ROLE_KEY` is set in your `.env`.
+- Check if you've run the SQL migration script in the Supabase Dashboard.
 
-## Troubleshooting
-
-**"SQLITE_ERROR: no such table" error?**
-- Run `npm run db:init` to create tables, then `npm run db:seed` to add demo data
-
-**Port 3000 already in use?**
-- Run on a different port: `PORT=3001 npm run dev`
+**Database tables not found?**
+- Run `npm run db:verify` to see which tables are missing.
 
 **Want to reset everything?**
-- Delete `data.db` and run `npm run db:seed` again
-
-That's it! No Docker, no PostgreSQL, no Prisma - just pure SQLite with npm install and you're ready to go.
+- In Supabase SQL Editor, drop the tables and run the migration script again, then re-seed.

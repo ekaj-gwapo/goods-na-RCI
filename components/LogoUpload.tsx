@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -58,8 +59,11 @@ export default function LogoUpload({ currentLogo, onUploadSuccess }: LogoUploadP
       }
 
       onUploadSuccess?.(data.url)
+      toast.success('Logo uploaded successfully!')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed')
+      const msg = err instanceof Error ? err.message : 'Upload failed'
+      setError(msg)
+      toast.error(msg)
       setPreview(null)
     } finally {
       setIsLoading(false)

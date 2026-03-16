@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import Confetti from 'react-confetti'
 
 export default function LoginPage() {
@@ -90,8 +91,12 @@ export default function LoginPage() {
       } else {
         router.push('/')
       }
+      
+      toast.success('Login successful!')
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'An error occurred')
+      const msg = error instanceof Error ? error.message : 'An error occurred'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsLoading(false)
     }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -193,7 +194,7 @@ export default function ViewerDashboard() {
 
   const createBatchAndPrint = async () => {
     if (!user || !selectedEntryUser || transactions.length === 0) {
-      alert('No transactions to print')
+      toast.error('No transactions to print')
       return
     }
 
@@ -228,8 +229,7 @@ export default function ViewerDashboard() {
       setBatchId(batch.id)
 
       // Show success message
-      const msg = `Batch created successfully! ID: ${batch.id.slice(0, 8)}`
-      alert(msg)
+      toast.success(`Batch created successfully! ID: ${batch.id.slice(0, 8)}`)
 
       // Open print dialog and ONLY refresh state after a delay or dialog close
       setTimeout(async () => {
@@ -247,10 +247,10 @@ export default function ViewerDashboard() {
             setIsCreatingBatch(true)
             await fetch(`/api/batches/${batch.id}`, { method: 'DELETE' })
             setBatchId(null)
-            alert("Batch creation has been undone. Transactions are restored to the list.")
+            toast.info("Batch creation undone. Transactions restored.")
           } catch (error) {
             console.error('Error undoing batch:', error)
-            alert('Failed to undo batch creation.')
+            toast.error('Failed to undo batch creation.')
           } finally {
             setIsCreatingBatch(false)
             await fetchTransactions(selectedEntryUser)
@@ -259,7 +259,7 @@ export default function ViewerDashboard() {
       }, 500)
     } catch (error) {
       console.error('Error creating batch:', error)
-      alert('Failed to create batch. Please try again.')
+      toast.error('Failed to create batch. Please try again.')
     } finally {
       setIsCreatingBatch(false)
     }

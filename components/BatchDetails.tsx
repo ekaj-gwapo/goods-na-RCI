@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, RotateCcw, Check, X } from 'lucide-react'
@@ -91,7 +92,7 @@ export default function BatchDetails({
 
   const handleRestore = async () => {
     if (selectedTransactions.size === 0) {
-      alert('Please select at least one transaction to restore')
+      toast.error('Please select at least one transaction to restore')
       return
     }
 
@@ -108,9 +109,7 @@ export default function BatchDetails({
       if (!response.ok) throw new Error('Failed to restore transactions')
 
       const result = await response.json()
-      alert(
-        `Successfully restored ${result.restoredCount} transaction(s) to the main list`
-      )
+      toast.success(`Successfully restored ${result.restoredCount} transaction(s)`)
       setSelectedTransactions(new Set())
       setRestoreConfirm(false)
       
@@ -123,7 +122,7 @@ export default function BatchDetails({
       }
     } catch (error) {
       console.error('Error restoring transactions:', error)
-      alert('Failed to restore transactions. Please try again.')
+      toast.error('Failed to restore transactions. Please try again.')
     } finally {
       setIsRestoring(false)
     }
