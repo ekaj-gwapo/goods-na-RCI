@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
 
 // GET viewer's assigned entry users
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { data: assignments, error } = await supabase
+    const { data: assignments, error } = await supabaseAdmin
       .from('viewer_access')
       .select(`
         *,
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: assignment, error } = await supabase
+    const { data: assignment, error } = await supabaseAdmin
       .from('viewer_access')
       .insert([
         {
@@ -108,7 +108,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('viewer_access')
       .delete()
       .eq('id', id)

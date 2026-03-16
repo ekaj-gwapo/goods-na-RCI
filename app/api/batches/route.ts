@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { data: batches, error } = await supabase
+    const { data: batches, error } = await supabaseAdmin
       .from('transaction_batches')
       .select('*')
       .eq('viewer_id', viewerId)
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     const totalAmount = transactions.reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0)
     
     // Get the count of batches for this viewer to generate sequential number
-    const { count, error: countError } = await supabase
+    const { count, error: countError } = await supabaseAdmin
       .from('transaction_batches')
       .select('*', { count: 'exact', head: true })
       .eq('viewer_id', viewerId)
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     const batchName = `Batch ${sequentialNumber}`
 
     // Create batch record
-    const { data: batch, error: batchError } = await supabase
+    const { data: batch, error: batchError } = await supabaseAdmin
       .from('transaction_batches')
       .insert([
         {
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     // Create batch transaction records and delete from main transactions table
     for (const tx of transactions) {
-      const { error: btError } = await supabase
+      const { error: btError } = await supabaseAdmin
         .from('batch_transactions')
         .insert([
           {
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       if (btError) throw btError
 
       // Delete the transaction from main transactions table
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await supabaseAdmin
         .from('transactions')
         .delete()
         .eq('id', tx.id)

@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
 
 // GET transactions for a user
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { data: transactions, error } = await supabase
+    const { data: transactions, error } = await supabaseAdmin
       .from('transactions')
       .select('*')
       .eq('user_id', userId)
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Account Code is required' }, { status: 400 })
     }
 
-    const { data: transaction, error } = await supabase
+    const { data: transaction, error } = await supabaseAdmin
       .from('transactions')
       .insert([
         {
@@ -168,7 +168,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Account Code is required' }, { status: 400 })
     }
 
-    const { data: transaction, error } = await supabase
+    const { data: transaction, error } = await supabaseAdmin
       .from('transactions')
       .update({
         bank_name: body.bankName.trim(),
@@ -228,7 +228,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('transactions')
       .delete()
       .eq('id', id)

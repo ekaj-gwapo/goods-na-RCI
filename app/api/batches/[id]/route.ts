@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
 
 // GET batch details with transactions
@@ -10,7 +10,7 @@ export async function GET(
     const { id: batchId } = await params
 
     // Get batch metadata
-    const { data: batch, error: batchError } = await supabase
+    const { data: batch, error: batchError } = await supabaseAdmin
       .from('transaction_batches')
       .select('*')
       .eq('id', batchId)
@@ -24,7 +24,7 @@ export async function GET(
     }
 
     // Get batch transactions
-    const { data: batchTransactions, error: btError } = await supabase
+    const { data: batchTransactions, error: btError } = await supabaseAdmin
       .from('batch_transactions')
       .select('id, transaction_id, transaction_data, created_at')
       .eq('batch_id', batchId)
@@ -67,7 +67,7 @@ export async function POST(
     }
 
     // Get the batch transactions data
-    const { data: batchTxs, error: fetchError } = await supabase
+    const { data: batchTxs, error: fetchError } = await supabaseAdmin
       .from('batch_transactions')
       .select('id, transaction_data')
       .eq('batch_id', batchId)
@@ -89,10 +89,10 @@ export async function POST(
 
       try {
         // Delete first to ensure no duplicates (if any)
-        await supabase.from('transactions').delete().eq('id', txData.id)
+        await supabaseAdmin.from('transactions').delete().eq('id', txData.id)
 
         // Then re-insert the transaction with proper snake_case mapping
-        const { error: insertError } = await supabase
+        const { error: insertError } = await supabaseAdmin
           .from('transactions')
           .insert([
             {
@@ -142,7 +142,7 @@ export async function POST(
     let batchWasDeleted = false
     
     if (batchTxIds.length > 0) {
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await supabaseAdmin
         .from('batch_transactions')
         .delete()
         .in('id', batchTxIds)
@@ -150,7 +150,7 @@ export async function POST(
       if (deleteError) throw deleteError
 
       // Update batch count and amount
-      const { data: remainingTxs, error: remainingError } = await supabase
+      const { data: remainingTxs, error: remainingError } = await supabaseAdmin
         .from('batch_transactions')
         .select('transaction_data')
         .eq('batch_id', batchId)
@@ -158,7 +158,7 @@ export async function POST(
       if (remainingError) throw remainingError
 
       if (remainingTxs.length === 0) {
-        await supabase.from('transaction_batches').delete().eq('id', batchId)
+        await supabaseAdmin.from('transaction_batches').delete().eq('id', batchId)
         batchWasDeleted = true
       } else {
         const totalAmount = remainingTxs.reduce((sum: number, bt: any) => {
@@ -166,7 +166,7 @@ export async function POST(
           return sum + (data.amount || 0)
         }, 0)
 
-        await supabase
+        await supabaseAdmin
           .from('transaction_batches')
           .update({
             transaction_count: remainingTxs.length,
@@ -200,7 +200,7 @@ export async function DELETE(
     const { id: batchId } = await params
 
     // Get ALL transactions in this batch
-    const { data: batchTxs, error: fetchError } = await supabase
+    const { data: batchTxs, error: fetchError } = await supabaseAdmin
       .from('batch_transactions')
       .select('id, transaction_data')
       .eq('batch_id', batchId)
@@ -208,7 +208,7 @@ export async function DELETE(
     if (fetchError) throw fetchError
 
     if (!batchTxs || batchTxs.length === 0) {
-      await supabase.from('transaction_batches').delete().eq('id', batchId)
+      await supabaseAdmin.from('transaction_batches').delete().eq('id', batchId)
       return NextResponse.json({ success: true, message: 'Empty batch deleted' })
     }
 
@@ -216,8 +216,8 @@ export async function DELETE(
     for (const batchTx of batchTxs) {
       const txData = typeof batchTx.transaction_data === 'string' ? JSON.parse(batchTx.transaction_data) : batchTx.transaction_data
       try {
-        await supabase.from('transactions').delete().eq('id', txData.id)
-        await supabase
+        await supabaseAdmin.from('transactions').delete().eq('id', txData.id)
+        await supabaseAdmin
           .from('transactions')
           .insert([
             {
@@ -248,7 +248,7 @@ export async function DELETE(
 
     // Delete from transaction_batches (batch_transactions will cascade if FK is set, but we'll do it explicitly if needed)
     // Actually our SQL has ON DELETE CASCADE
-    await supabase.from('transaction_batches').delete().eq('id', batchId)
+    await supabaseAdmin.from('transaction_batches').delete().eq('id', batchId)
 
     return NextResponse.json({ success: true, message: 'Batch deleted and transactions restored' })
   } catch (error) {
